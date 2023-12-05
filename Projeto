@@ -1,0 +1,187 @@
+#define led1 13
+#define led2 12
+#define led3 8
+#define led4 10
+#define pot1 A0
+#define pot2 A1
+#define pot3 A2
+#define INTERVALO 30
+
+
+/*******************************************************************************/
+int pinTrig = 4;
+int pinEcho = 2;
+float tempoEcho = 0;
+
+const float velocidadeSom = 0.00034029;
+
+
+void gatilhoSensor() {
+
+digitalWrite(pinTrig, HIGH);
+delayMicroseconds(10);
+digitalWrite(pinTrig, LOW);
+}
+
+
+float calculaDistancia(float tempoMicrossegundos) {
+return ((tempoMicrossegundos * velocidadeSom) / 2);
+}
+
+
+unsigned long tempo;
+float pote1;
+float pote2;
+float pote3;
+float resistencia1;
+float resistencia2;
+float resistencia3;
+unsigned long lastMillis = 0;
+bool liga = false;
+
+enum Led4State {
+OFF,
+PISCAR,
+ON,
+};
+
+Led4State led4State = OFF;
+unsigned long led4StartTime;
+
+void setup() {
+pinMode(led1, OUTPUT);
+pinMode(led2, OUTPUT);
+pinMode(led3, OUTPUT);
+pinMode(led4, OUTPUT);
+
+/*pinMode(pot1, INPUT);
+pinMode(pot2, INPUT);
+pinMode(pot3, INPUT);*/
+
+pinMode(pinTrig, OUTPUT);
+pinMode(pinEcho, INPUT);
+
+
+randomSeed(analogRead(5));
+
+resistencia1 = random(1, 1024);
+resistencia2 = random(1, 1024);
+resistencia3 = random(1, 1024);
+Serial.begin(9600);
+}
+
+void loop() {
+unsigned long currentMillis = millis();
+
+if (currentMillis - lastMillis >= 18000) {
+lastMillis = currentMillis;
+
+resistencia1 = random(1, 1024);
+resistencia2 = random(1, 1024);
+resistencia3 = random(1, 1024);
+}
+
+pote1 = analogRead(pot1);
+pote2 = analogRead(pot2);
+pote3 = analogRead(pot3);
+
+if (pote1 >= (resistencia1 - INTERVALO) && pote1 <= (resistencia1 + INTERVALO)) {
+digitalWrite(led1, HIGH);
+} else {
+digitalWrite(led1, LOW);
+}
+
+if (pote2 >= (resistencia2 - INTERVALO) && pote2 <= (resistencia2 + INTERVALO)) {
+digitalWrite(led2, HIGH);
+} else {
+digitalWrite(led2, LOW);
+}
+
+if (pote3 >= (resistencia3 - INTERVALO) && pote3 <= (resistencia3 + INTERVALO)) {
+digitalWrite(led3, HIGH);
+} else {
+digitalWrite(led3, LOW);
+}
+
+updateLed4();
+
+Serial.print(pote1);
+Serial.print(" ");
+Serial.print(resistencia1);
+Serial.print(",");
+Serial.print(pote2);
+Serial.print(" ");
+Serial.print(resistencia2);
+Serial.print(",");
+Serial.print(pote3);
+Serial.print(" ");
+Serial.println(resistencia3);
+}
+
+void updateLed4() {
+switch (led4State) {
+case OFF:
+if (millis() - led4StartTime >= 10000) {
+led4State = PISCAR;
+led4StartTime = millis();
+}
+break;
+
+case PISCAR:
+if (millis() - led4StartTime < 3000) {
+if ((millis() - led4StartTime) % 1000 < 500) {
+digitalWrite(led4, HIGH);
+} else {
+digitalWrite(led4, LOW);
+}
+
+} else {
+led4State = ON;
+led4StartTime = millis();
+}
+break;
+
+case ON:
+if (millis() - led4StartTime >= 6000) {
+led4State = OFF;
+led4StartTime = millis();
+digitalWrite(led4, LOW);
+} else {
+digitalWrite(led4, HIGH);
+
+gatilhoSensor(); // envia pulso trigger (gatilho) para disparar o sensor
+tempoEcho = pulseIn(pinEcho, HIGH); // mede o tempo de duração do sinal no pino de leitura em us
+// exibe no monitor serial
+Serial.print("Distancia em metros: ");
+Serial.println(calculaDistancia(tempoEcho), 4);
+Serial.print("Distancia em centimetros: ");
+Serial.println(calculaDistancia(tempoEcho) * 100);
+Serial.println("------------------------------------");
+
+
+
+}
+
+if ((calculaDistancia(tempoEcho) * 100 < 10)) {
+
+Serial.println("Detectado");
+for(int i=0;i<10;i++){
+digitalWrite(led1, HIGH);
+digitalWrite(led2, HIGH);
+digitalWrite(led3, HIGH);
+digitalWrite(led4, HIGH);
+delay(50);
+digitalWrite(led1, LOW);
+digitalWrite(led2, LOW);
+digitalWrite(led3, LOW);
+digitalWrite(led4, LOW);
+delay(50);
+}
+resistencia1 = random(1, 1024);
+resistencia2 = random(1, 1024);
+resistencia3 = random(1, 1024);
+}
+break;
+}
+
+}
